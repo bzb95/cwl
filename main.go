@@ -1,0 +1,79 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+)
+
+func main() {
+	// Parse command line flags
+	var (
+		logGroup = flag.String("log", "", "CloudWatch log group name (overrides config)")
+		profile  = flag.String("profile", "", "AWS profile name (overrides config)")
+		setup    = flag.Bool("setup", false, "Run interactive setup")
+	)
+	flag.Parse()
+
+	// Handle setup command
+	if *setup {
+		if err := runSetup(); err != nil {
+			fmt.Fprintf(os.Stderr, "Setup failed: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("Configuration saved successfully!")
+		return
+	}
+
+	// Load configuration
+	config, err := loadConfig()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+		os.Exit(1)
+	}
+
+	// If no config exists, run setup
+	if config == nil {
+		fmt.Println("Welcome to cwlogs! It looks like this is your first time running this tool.")
+		fmt.Println("Let's set up your configuration...")
+		if err := runSetup(); err != nil {
+			fmt.Fprintf(os.Stderr, "Setup failed: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Reload the newly created config
+		config, err = loadConfig()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading new config: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	// Apply command line overrides
+	if *logGroup != "" {
+		config.LogGroup = *logGroup
+	}
+	if *profile != "" {
+		config.Profile = *profile
+	}
+
+	// Validate configuration
+	if config.LogGroup == "" {
+		fmt.Fprintf(os.Stderr, "Error: log group is required. Run with -setup to configure.\n")
+		os.Exit(1)
+	}
+
+	// Create CloudWatch client
+	client, err := NewCloudWatchClient(config.Profile, config.LogGroup)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating CloudWatch client: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Create and start log forwarder
+	forwarder := NewLogForwarder(client)
+	if err := forwarder.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error running log forwarder: %v\n", err)
+		os.Exit(1)
+	}
+}
