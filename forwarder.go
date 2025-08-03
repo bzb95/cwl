@@ -76,6 +76,7 @@ func (f *LogForwarder) Start() error {
 	// Flush any remaining logs and wait for completion
 	f.flushAndWait()
 
+	fmt.Printf("Exiting. Log group: %s, Log stream: %s\n", f.client.logGroup, f.client.logStream)
 	fmt.Println("Log forwarder stopped.")
 	return nil
 }

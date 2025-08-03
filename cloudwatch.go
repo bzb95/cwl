@@ -18,7 +18,7 @@ type CloudWatchClient struct {
 	logStream string
 }
 
-func NewCloudWatchClient(profile, region, logGroup string) (*CloudWatchClient, error) {
+func NewCloudWatchClient(profile, region, logGroup, streamName string) (*CloudWatchClient, error) {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithSharedConfigProfile(profile),
 		config.WithRegion(region),
@@ -34,8 +34,11 @@ func NewCloudWatchClient(profile, region, logGroup string) (*CloudWatchClient, e
 		return nil, fmt.Errorf("failed to create log group: %w", err)
 	}
 
-	// Create a log stream with timestamp
-	logStream := fmt.Sprintf("cwlogs-%d", time.Now().Unix())
+	// Determine log stream name: use provided streamName if set, else generate one
+	logStream := streamName
+	if logStream == "" {
+		logStream = fmt.Sprintf("cwlogs-%d", time.Now().Unix())
+	}
 
 	if err := createLogStream(client, logGroup, logStream); err != nil {
 		return nil, fmt.Errorf("failed to create log stream: %w", err)
