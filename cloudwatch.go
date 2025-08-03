@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -17,9 +18,10 @@ type CloudWatchClient struct {
 	logStream string
 }
 
-func NewCloudWatchClient(profile, logGroup string) (*CloudWatchClient, error) {
+func NewCloudWatchClient(profile, region, logGroup string) (*CloudWatchClient, error) {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithSharedConfigProfile(profile),
+		config.WithRegion(region),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
@@ -52,10 +54,11 @@ func createLogGroupIfNotExists(client *cloudwatchlogs.Client, logGroup string) e
 	})
 	if err != nil {
 		var alreadyExists *types.ResourceAlreadyExistsException
-		if !errorsAs(err, &alreadyExists) {
-			return err
+		if errors.As(err, &alreadyExists) {
+			// Log group already exists, which is fine
+			return nil
 		}
-		// Log group already exists, which is fine
+		return err
 	}
 	return nil
 }
@@ -67,10 +70,11 @@ func createLogStream(client *cloudwatchlogs.Client, logGroup, logStream string) 
 	})
 	if err != nil {
 		var alreadyExists *types.ResourceAlreadyExistsException
-		if !errorsAs(err, &alreadyExists) {
-			return err
+		if errors.As(err, &alreadyExists) {
+			// Log stream already exists, which is fine
+			return nil
 		}
-		// Log stream already exists, which is fine
+		return err
 	}
 	return nil
 }
@@ -100,17 +104,4 @@ func (c *CloudWatchClient) SendLogs(messages []string) error {
 	}
 
 	return nil
-}
-
-// Helper function for error type assertion
-func errorsAs(err error, target interface{}) bool {
-	// This is a simplified version of errors.As for AWS SDK v2
-	switch t := target.(type) {
-	case **types.ResourceAlreadyExistsException:
-		if e, ok := err.(*types.ResourceAlreadyExistsException); ok {
-			*t = e
-			return true
-		}
-	}
-	return false
 }

@@ -16,6 +16,7 @@ const (
 type Config struct {
 	LogGroup string `json:"log_group"`
 	Profile  string `json:"profile"`
+	Region   string `json:"region"`
 }
 
 func getConfigPath() (string, error) {
@@ -81,8 +82,15 @@ func runSetup() error {
 	fmt.Print("Enter AWS profile name (default: default): ")
 	fmt.Scanln(&config.Profile)
 
+	fmt.Print("Enter AWS region (default: us-west-2): ")
+	fmt.Scanln(&config.Region)
+
 	if config.Profile == "" {
 		config.Profile = "default"
+	}
+
+	if config.Region == "" {
+		config.Region = "us-west-2"
 	}
 
 	if config.LogGroup == "" {

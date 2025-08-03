@@ -11,7 +11,9 @@ func main() {
 	var (
 		logGroup = flag.String("log", "", "CloudWatch log group name (overrides config)")
 		profile  = flag.String("profile", "", "AWS profile name (overrides config)")
+		region   = flag.String("region", "", "AWS region (overrides config)")
 		setup    = flag.Bool("setup", false, "Run interactive setup")
+		silent   = flag.Bool("silent", false, "Silence stdout output (only send to CloudWatch)")
 	)
 	flag.Parse()
 
@@ -56,6 +58,9 @@ func main() {
 	if *profile != "" {
 		config.Profile = *profile
 	}
+	if *region != "" {
+		config.Region = *region
+	}
 
 	// Validate configuration
 	if config.LogGroup == "" {
@@ -64,14 +69,14 @@ func main() {
 	}
 
 	// Create CloudWatch client
-	client, err := NewCloudWatchClient(config.Profile, config.LogGroup)
+	client, err := NewCloudWatchClient(config.Profile, config.Region, config.LogGroup)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating CloudWatch client: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Create and start log forwarder
-	forwarder := NewLogForwarder(client)
+	forwarder := NewLogForwarder(client, *silent)
 	if err := forwarder.Start(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error running log forwarder: %v\n", err)
 		os.Exit(1)
